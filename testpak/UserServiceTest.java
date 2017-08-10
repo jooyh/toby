@@ -15,10 +15,11 @@ import springbook.user.dao.UserDao;
 import springbook.user.domain.User;
 import springbook.user.enumpak.Level;
 import springbook.user.exception.TestUserServiceException;
-import springbook.user.service.forTest.DummyMailSender;
+import springbook.user.service.UserService;
+import springbook.user.service.UserServiceTx;
 import springbook.user.service.forTest.MockMailSender;
 import springbook.user.service.forTest.TestUserService;
-import springbook.user.service.UserService;
+import springbook.user.service.UserServiceImpl;
 
 import java.util.Arrays;
 import java.util.List;
@@ -28,8 +29,8 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 import static org.junit.Assert.fail;
-import static springbook.user.service.UserService.MIN_LOGCOUNT_FOR_SILVER;
-import static springbook.user.service.UserService.MIN_RECCOEND_FOR_GOLD;
+import static springbook.user.service.UserServiceImpl.MIN_LOGCOUNT_FOR_SILVER;
+import static springbook.user.service.UserServiceImpl.MIN_RECCOEND_FOR_GOLD;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Context.class)
@@ -37,6 +38,10 @@ public class UserServiceTest {
 
     @Autowired
     UserService userService;
+
+    @Autowired
+    UserServiceImpl userServiceImpl;
+
     @Autowired
     PlatformTransactionManager transactionManager;
     @Autowired
@@ -49,7 +54,7 @@ public class UserServiceTest {
 
     @Test
     public void bean() {
-        assertThat(this.userService, is(notNullValue()));
+        assertThat(this.userServiceImpl, is(notNullValue()));
     }
 
     @Before
@@ -72,9 +77,9 @@ public class UserServiceTest {
             dao.add(user);
         }
         MockMailSender mockMailSender = new MockMailSender();
-        userService.setMailSender(mockMailSender);
+        userServiceImpl.setMailSender(mockMailSender);
 
-        userService.upgradeLevels();
+        userServiceImpl.upgradeLevels();
 
         checkLevelUpgraded(users.get(0), false);
         checkLevelUpgraded(users.get(1), true);
@@ -97,8 +102,8 @@ public class UserServiceTest {
         User userWithoutLeve = users.get(0);
         userWithoutLeve.setLevel(null);
 
-        userService.add(userWithLevel);
-        userService.add(userWithoutLeve);
+        userServiceImpl.add(userWithLevel);
+        userServiceImpl.add(userWithoutLeve);
 
         User userWithLevelRead = dao.get(userWithLevel.getId());
         User userWithOutLevelRead = dao.get(userWithoutLeve.getId());
@@ -109,10 +114,14 @@ public class UserServiceTest {
 
     @Test
     public void upgradeAllOrNothing() throws IllegalAccessException {
-        UserService testUserService = new TestUserService(users.get(3).getId());
-        testUserService.setUserDao(this.dao);
-        testUserService.setTransactionManager(transactionManager);
-        testUserService.setMailSender(new DummyMailSender());
+
+        TestUserService testUserService = new TestUserService(users.get(3).getId());
+        testUserService.setUserDao(dao);
+        testUserService.setMailSender(mailSender);
+
+        UserServiceTx txUserService = new UserServiceTx();
+        txUserService.setTransactionManager(transactionManager);
+        txUserService.setUserService(testUserService);
 
         dao.deleteAll();
         for (User user : users) dao.add(user);
