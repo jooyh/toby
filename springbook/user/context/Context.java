@@ -8,8 +8,10 @@ import org.springframework.mail.MailSender;
 import org.springframework.transaction.PlatformTransactionManager;
 import springbook.user.dao.UserDao;
 import springbook.user.dao.concrete.UserDaoJdbc;
-import springbook.user.service.forTest.DummyMailSender;
 import springbook.user.service.UserService;
+import springbook.user.service.UserServiceImpl;
+import springbook.user.service.UserServiceTx;
+import springbook.user.service.forTest.DummyMailSender;
 
 
 import javax.sql.DataSource;
@@ -38,12 +40,19 @@ public class Context {
     }
 
     @Bean
-    public UserService userService() {
-        UserService userService = new UserService();
-        userService.setUserDao(userDao());
-        userService.setTransactionManager(transactionManager());
-        userService.setMailSender(mailSender());
-        return userService;
+    public UserServiceTx userService() {
+        UserServiceTx userServiceTx = new UserServiceTx();
+        userServiceTx.setTransactionManager(transactionManager());
+        userServiceTx.setUserService(userServiceImpl());
+        return userServiceTx;
+    }
+
+    @Bean
+    public UserServiceImpl userServiceImpl() {
+        UserServiceImpl userServiceImpl = new UserServiceImpl();
+        userServiceImpl.setUserDao(userDao());
+        userServiceImpl.setMailSender(mailSender());
+        return userServiceImpl;
     }
 
     @Bean
