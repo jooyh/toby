@@ -18,7 +18,7 @@
         <property name="dataSource" ref="dataSource"/>
     </bean>
 
-    <bean id="userServiceImpl" class="springbook.user.service.UserServiceImpl">
+    <bean id="userServiceImpl" class="springbook.user.service.concrete.UserServiceImpl">
         <property name="userDao" ref="userDao"/>
         <property name="mailSender" ref="mailsender"/>
     </bean>

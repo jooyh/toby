@@ -1,10 +1,11 @@
-package springbook.user.service;
+package springbook.user.service.concrete;
 
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
 import springbook.user.dao.UserDao;
 import springbook.user.domain.User;
 import springbook.user.domain.enumpak.Level;
+import springbook.user.service.UserService;
 
 import java.util.List;
 

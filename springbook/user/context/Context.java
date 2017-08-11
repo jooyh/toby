@@ -9,9 +9,8 @@ import org.springframework.mail.MailSender;
 import org.springframework.transaction.PlatformTransactionManager;
 import springbook.user.dao.UserDao;
 import springbook.user.dao.concrete.UserDaoJdbc;
-import springbook.user.service.UserServiceImpl;
-import springbook.user.service.UserServiceTx;
-import testpak.forTest.DummyMailSender;
+import springbook.user.service.concrete.UserServiceImpl;
+import testpak.UserServiceTest;
 
 
 import javax.sql.DataSource;
@@ -44,13 +43,6 @@ public class Context {
         return new JdbcTemplate(dataSource());
     }
 
-    @Bean
-    public UserServiceTx userService() {
-        UserServiceTx userServiceTx = new UserServiceTx();
-        userServiceTx.setTransactionManager(transactionManager());
-        userServiceTx.setUserService(userServiceImpl());
-        return userServiceTx;
-    }
 
     @Bean
     public UserServiceImpl userServiceImpl() {
@@ -67,6 +59,6 @@ public class Context {
 
     @Bean
     public MailSender mailSender() {
-        return new DummyMailSender();
+        return new UserServiceTest.MockMailSenderImpl();
     }
 }

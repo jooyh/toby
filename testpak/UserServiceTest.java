@@ -5,22 +5,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.MailException;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import springbook.user.context.Context;
 import springbook.user.dao.UserDao;
 import springbook.user.domain.User;
 import springbook.user.domain.enumpak.Level;
 import springbook.user.exception.TestUserServiceException;
+import springbook.user.service.TransactionHandler;
 import springbook.user.service.UserService;
-import springbook.user.service.UserServiceTx;
-import testpak.forTest.MockMailSender;
-import springbook.user.service.UserServiceImpl;
+import springbook.user.service.concrete.UserServiceImpl;
 
 import javax.sql.DataSource;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -31,15 +33,13 @@ import static org.junit.Assert.assertThat;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
-import static springbook.user.service.UserServiceImpl.MIN_LOGCOUNT_FOR_SILVER;
-import static springbook.user.service.UserServiceImpl.MIN_RECCOEND_FOR_GOLD;
+import static springbook.user.service.concrete.UserServiceImpl.MIN_LOGCOUNT_FOR_SILVER;
+import static springbook.user.service.concrete.UserServiceImpl.MIN_RECCOEND_FOR_GOLD;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations = "/applicationContext.xml")
+@ContextConfiguration(classes = Context.class)
 public class UserServiceTest {
 
-    @Autowired
-    UserService userService;
     @Autowired
     UserServiceImpl userServiceImpl;
     @Autowired
@@ -84,16 +84,16 @@ public class UserServiceTest {
 
         userServiceImpl.upgradeLevels();
 
-        verify(mockUserDao,times(2)).update(any(User.class));
-        verify(mockUserDao,times(2)).update(any(User.class));
+        verify(mockUserDao, times(2)).update(any(User.class));
+        verify(mockUserDao, times(2)).update(any(User.class));
         verify(mockUserDao).update(users.get(1));
-        assertThat(users.get(1).getLevel(),is(Level.SILVER));
+        assertThat(users.get(1).getLevel(), is(Level.SILVER));
         verify(mockUserDao).update(users.get(3));
-        assertThat(users.get(3).getLevel(),is(Level.GOLD));
+        assertThat(users.get(3).getLevel(), is(Level.GOLD));
 
         ArgumentCaptor<SimpleMailMessage> mailMessageArg =
                 ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(mockMailSender,times(2)).send(mailMessageArg.capture());
+        verify(mockMailSender, times(2)).send(mailMessageArg.capture());
         List<SimpleMailMessage> mailMessages = mailMessageArg.getAllValues();
 
         assertThat(mailMessages.get(0).getTo()[0], is(users.get(1).getEmail()));
@@ -125,15 +125,19 @@ public class UserServiceTest {
         testUserService.setUserDao(userDao);
         testUserService.setMailSender(mailSender);
 
-        UserServiceTx txUserService = new UserServiceTx();
-        txUserService.setTransactionManager(transactionManager);
-        txUserService.setUserService(testUserService);
+        TransactionHandler txHandler = new TransactionHandler();
+        txHandler.setTarget(testUserService);
+        txHandler.setTransactionManager(transactionManager);
+        txHandler.setPattern("upgradeLevels");
+
+        UserService txUserService = (UserService) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class[]{UserService.class}, txHandler);
 
         userDao.deleteAll();
         for (User user : users) userDao.add(user);
 
         try {
-            testUserService.upgradeLevels();
+            txUserService.upgradeLevels();
             fail("TestUserServiceException expected");
         } catch (TestUserServiceException e) {
         }
@@ -226,4 +230,17 @@ public class UserServiceTest {
         }
 
     }
+
+    static public class MockMailSenderImpl implements MailSender {
+        @Override
+        public void send(SimpleMailMessage simpleMailMessage) throws MailException {
+
+        }
+
+        @Override
+        public void send(SimpleMailMessage... simpleMailMessages) throws MailException {
+
+        }
+    }
+
 }
