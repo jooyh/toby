@@ -1,5 +1,8 @@
 package springbook.user.context;
 
+import org.springframework.aop.framework.ProxyFactoryBean;
+import org.springframework.aop.support.DefaultPointcutAdvisor;
+import org.springframework.aop.support.NameMatchMethodPointcut;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -9,6 +12,7 @@ import org.springframework.mail.MailSender;
 import org.springframework.transaction.PlatformTransactionManager;
 import springbook.user.dao.UserDao;
 import springbook.user.dao.concrete.UserDaoJdbc;
+import springbook.user.service.TransactionAdvice;
 import springbook.user.service.concrete.UserServiceImpl;
 import testpak.UserServiceTest;
 
@@ -21,12 +25,9 @@ import javax.sql.DataSource;
 
 @Configuration
 public class Context {
-    @Bean
-    public UserDao userDao() {
-        UserDaoJdbc userDao = new UserDaoJdbc();
-        userDao.setJdbcTemplate(jdbcTemplate());
-        return userDao;
-    }
+    /*
+    DataSource & Transaction
+     */
 
     @Bean
     public DataSource dataSource() {
@@ -43,6 +44,47 @@ public class Context {
         return new JdbcTemplate(dataSource());
     }
 
+    @Bean
+    public PlatformTransactionManager transactionManager() {
+        return new DataSourceTransactionManager(dataSource());
+    }
+
+    @Bean
+    public TransactionAdvice transactionAdvice() {
+        TransactionAdvice transactionAdvice = new TransactionAdvice();
+        transactionAdvice.setTransactionManager(transactionManager());
+        return transactionAdvice;
+    }
+
+    @Bean
+    public NameMatchMethodPointcut transactionPointcut() {
+        NameMatchMethodPointcut nameMatchMethodPointcut = new NameMatchMethodPointcut();
+        nameMatchMethodPointcut.setMappedName("upgrade*");
+        return nameMatchMethodPointcut;
+    }
+
+    @Bean
+    public DefaultPointcutAdvisor transactionAdvisor() {
+        DefaultPointcutAdvisor advisor = new DefaultPointcutAdvisor();
+        advisor.setAdvice(transactionAdvice());
+        advisor.setPointcut(transactionPointcut());
+        return advisor;
+    }
+
+    @Bean
+    public ProxyFactoryBean proxyFactoryBean() {
+        ProxyFactoryBean proxyFactoryBean = new ProxyFactoryBean();
+        proxyFactoryBean.setTarget(userServiceImpl());
+        proxyFactoryBean.setInterceptorNames();
+        return proxyFactoryBean;
+    }
+
+    @Bean
+    public UserDao userDao() {
+        UserDaoJdbc userDao = new UserDaoJdbc();
+        userDao.setJdbcTemplate(jdbcTemplate());
+        return userDao;
+    }
 
     @Bean
     public UserServiceImpl userServiceImpl() {
@@ -52,13 +94,12 @@ public class Context {
         return userServiceImpl;
     }
 
-    @Bean
-    public PlatformTransactionManager transactionManager() {
-        return new DataSourceTransactionManager(dataSource());
-    }
 
     @Bean
     public MailSender mailSender() {
         return new UserServiceTest.MockMailSenderImpl();
     }
+
+
 }
+

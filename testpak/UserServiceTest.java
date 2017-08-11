@@ -4,25 +4,25 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.springframework.aop.framework.ProxyFactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.mail.MailException;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import springbook.user.context.Context;
 import springbook.user.dao.UserDao;
 import springbook.user.domain.User;
 import springbook.user.domain.enumpak.Level;
 import springbook.user.exception.TestUserServiceException;
-import springbook.user.service.TransactionHandler;
 import springbook.user.service.UserService;
 import springbook.user.service.concrete.UserServiceImpl;
 
 import javax.sql.DataSource;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,7 +37,7 @@ import static springbook.user.service.concrete.UserServiceImpl.MIN_LOGCOUNT_FOR_
 import static springbook.user.service.concrete.UserServiceImpl.MIN_RECCOEND_FOR_GOLD;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Context.class)
+@ContextConfiguration(locations = "/applicationContext.xml")
 public class UserServiceTest {
 
     @Autowired
@@ -50,6 +50,8 @@ public class UserServiceTest {
     UserDao userDao;
     @Autowired
     MailSender mailSender;
+    @Autowired
+    ApplicationContext context;
 
 
     List<User> users;
@@ -119,19 +121,18 @@ public class UserServiceTest {
         assertThat(userWithOutLevelRead.getLevel(), is(Level.BASIC));
     }
 
+
     @Test
+    @DirtiesContext
     public void upgradeAllOrNothing() throws Exception {
         TestUserService testUserService = new TestUserService(users.get(3).getId());
         testUserService.setUserDao(userDao);
         testUserService.setMailSender(mailSender);
 
-        TransactionHandler txHandler = new TransactionHandler();
-        txHandler.setTarget(testUserService);
-        txHandler.setTransactionManager(transactionManager);
-        txHandler.setPattern("upgradeLevels");
-
-        UserService txUserService = (UserService) Proxy.newProxyInstance(
-                getClass().getClassLoader(), new Class[]{UserService.class}, txHandler);
+        ProxyFactoryBean txProxyFactoryBean =
+                context.getBean("&userService",ProxyFactoryBean.class);
+        txProxyFactoryBean.setTarget(testUserService);
+        UserService txUserService = (UserService)txProxyFactoryBean.getObject();
 
         userDao.deleteAll();
         for (User user : users) userDao.add(user);
