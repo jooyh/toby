@@ -3,24 +3,25 @@ package testpak;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailSender;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import springbook.user.context.Context;
 import springbook.user.dao.UserDao;
 import springbook.user.domain.User;
-import springbook.user.enumpak.Level;
+import springbook.user.domain.enumpak.Level;
 import springbook.user.exception.TestUserServiceException;
 import springbook.user.service.UserService;
 import springbook.user.service.UserServiceTx;
-import springbook.user.service.forTest.MockMailSender;
-import springbook.user.service.forTest.TestUserService;
+import testpak.forTest.MockMailSender;
 import springbook.user.service.UserServiceImpl;
 
+import javax.sql.DataSource;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -29,23 +30,24 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.*;
 import static springbook.user.service.UserServiceImpl.MIN_LOGCOUNT_FOR_SILVER;
 import static springbook.user.service.UserServiceImpl.MIN_RECCOEND_FOR_GOLD;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Context.class)
+@ContextConfiguration(locations = "/applicationContext.xml")
 public class UserServiceTest {
 
     @Autowired
     UserService userService;
-
     @Autowired
     UserServiceImpl userServiceImpl;
-
     @Autowired
     PlatformTransactionManager transactionManager;
     @Autowired
-    UserDao dao;
+    DataSource dataSource;
+    @Autowired
+    UserDao userDao;
     @Autowired
     MailSender mailSender;
 
@@ -69,34 +71,39 @@ public class UserServiceTest {
     }
 
     @Test
-    @DirtiesContext
     public void upgradeLevels() throws Exception {
 
-        dao.deleteAll();
-        for (User user : users) {
-            dao.add(user);
-        }
-        MockMailSender mockMailSender = new MockMailSender();
+        UserServiceImpl userServiceImpl = new UserServiceImpl();
+
+        UserDao mockUserDao = mock(UserDao.class);
+        when(mockUserDao.getAll()).thenReturn(this.users);
+        userServiceImpl.setUserDao(mockUserDao);
+
+        MailSender mockMailSender = mock(MailSender.class);
         userServiceImpl.setMailSender(mockMailSender);
 
         userServiceImpl.upgradeLevels();
 
-        checkLevelUpgraded(users.get(0), false);
-        checkLevelUpgraded(users.get(1), true);
-        checkLevelUpgraded(users.get(2), false);
-        checkLevelUpgraded(users.get(3), true);
-        checkLevelUpgraded(users.get(4), false);
+        verify(mockUserDao,times(2)).update(any(User.class));
+        verify(mockUserDao,times(2)).update(any(User.class));
+        verify(mockUserDao).update(users.get(1));
+        assertThat(users.get(1).getLevel(),is(Level.SILVER));
+        verify(mockUserDao).update(users.get(3));
+        assertThat(users.get(3).getLevel(),is(Level.GOLD));
 
-        List<String> request = mockMailSender.getRequests();
-        assertThat(request.size(),is(2));
-        assertThat(request.get(0),is(users.get(1).getEmail()));
-        assertThat(request.get(1),is(users.get(3).getEmail()));
+        ArgumentCaptor<SimpleMailMessage> mailMessageArg =
+                ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mockMailSender,times(2)).send(mailMessageArg.capture());
+        List<SimpleMailMessage> mailMessages = mailMessageArg.getAllValues();
+
+        assertThat(mailMessages.get(0).getTo()[0], is(users.get(1).getEmail()));
+        assertThat(mailMessages.get(1).getTo()[0], is(users.get(3).getEmail()));
 
     }
 
     @Test
     public void add() {
-        dao.deleteAll();
+        userDao.deleteAll();
 
         User userWithLevel = users.get(4);
         User userWithoutLeve = users.get(0);
@@ -105,51 +112,118 @@ public class UserServiceTest {
         userServiceImpl.add(userWithLevel);
         userServiceImpl.add(userWithoutLeve);
 
-        User userWithLevelRead = dao.get(userWithLevel.getId());
-        User userWithOutLevelRead = dao.get(userWithoutLeve.getId());
+        User userWithLevelRead = userDao.get(userWithLevel.getId());
+        User userWithOutLevelRead = userDao.get(userWithoutLeve.getId());
 
         assertThat(userWithLevelRead.getLevel(), is(userWithLevel.getLevel()));
         assertThat(userWithOutLevelRead.getLevel(), is(Level.BASIC));
     }
 
     @Test
-    public void upgradeAllOrNothing() throws IllegalAccessException {
-
+    public void upgradeAllOrNothing() throws Exception {
         TestUserService testUserService = new TestUserService(users.get(3).getId());
-        testUserService.setUserDao(dao);
+        testUserService.setUserDao(userDao);
         testUserService.setMailSender(mailSender);
 
         UserServiceTx txUserService = new UserServiceTx();
         txUserService.setTransactionManager(transactionManager);
         txUserService.setUserService(testUserService);
 
-        dao.deleteAll();
-        for (User user : users) dao.add(user);
+        userDao.deleteAll();
+        for (User user : users) userDao.add(user);
 
         try {
             testUserService.upgradeLevels();
             fail("TestUserServiceException expected");
         } catch (TestUserServiceException e) {
         }
-
-
         checkLevelUpgraded(users.get(1), false);
-
     }
 
 
     //    private method =============== *
     private void checkLevel(User user, Level expectedLevel) {
-        User userUpdated = dao.get(user.getId());
+        User userUpdated = userDao.get(user.getId());
         assertThat(userUpdated.getLevel(), is(expectedLevel));
     }
 
     private void checkLevelUpgraded(User user, boolean upgraded) {
-        User userUpdate = dao.get(user.getId());
+        User userUpdate = userDao.get(user.getId());
         if (upgraded) {
             assertThat(userUpdate.getLevel(), is(user.getLevel().nextLevel()));
         } else {
             assertThat(userUpdate.getLevel(), is(user.getLevel()));
         }
+    }
+
+    private void checkUserAndLevel(User updated, String expectedId, Level expectLevel) {
+        assertThat(updated.getId(), is(expectedId));
+        assertThat(updated.getLevel(), is(expectLevel));
+    }
+
+
+    // inner Class ========================== *
+
+    static class TestUserService extends UserServiceImpl {
+
+        String id;
+
+        TestUserService(String id) {
+            this.id = id;
+        }
+
+        @Override
+        protected void upgradeLevel(User user) {
+            if (user.getId().equals(this.id)) throw new TestUserServiceException();
+            super.upgradeLevel(user);
+        }
+    }
+
+    static class MockUserDao implements UserDao {
+
+        List<User> users;
+        List<User> updated = new ArrayList<>();
+
+        public MockUserDao(List<User> users) {
+            this.users = users;
+        }
+
+        public List<User> getUpdated() {
+            return this.updated;
+        }
+
+
+        @Override
+        public List<User> getAll() {
+            return this.users;
+        }
+
+        @Override
+        public void update(User user) {
+            updated.add(user);
+        }
+
+        //================= unUsed Method =========== *
+
+        @Override
+        public User get(String id) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void deleteAll() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int getCount() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void add(User user) {
+            throw new UnsupportedOperationException();
+        }
+
     }
 }

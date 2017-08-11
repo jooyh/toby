@@ -7,7 +7,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import springbook.user.context.Context;
 import springbook.user.domain.User;
-import springbook.user.enumpak.Level;
+import springbook.user.domain.enumpak.Level;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;

@@ -2,16 +2,16 @@ package springbook.user.context;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.mail.MailSender;
 import org.springframework.transaction.PlatformTransactionManager;
 import springbook.user.dao.UserDao;
 import springbook.user.dao.concrete.UserDaoJdbc;
-import springbook.user.service.UserService;
 import springbook.user.service.UserServiceImpl;
 import springbook.user.service.UserServiceTx;
-import springbook.user.service.forTest.DummyMailSender;
+import testpak.forTest.DummyMailSender;
 
 
 import javax.sql.DataSource;
@@ -19,12 +19,13 @@ import javax.sql.DataSource;
 /**
  * Created by user on 2017-08-03.
  */
+
 @Configuration
 public class Context {
     @Bean
     public UserDao userDao() {
         UserDaoJdbc userDao = new UserDaoJdbc();
-        userDao.setDataSource(dataSource());
+        userDao.setJdbcTemplate(jdbcTemplate());
         return userDao;
     }
 
@@ -35,8 +36,12 @@ public class Context {
         dataSource.setUrl("jdbc:mysql://localhost/toby");
         dataSource.setUsername("root");
         dataSource.setPassword("1234");
-
         return dataSource;
+    }
+
+    @Bean
+    public JdbcTemplate jdbcTemplate() {
+        return new JdbcTemplate(dataSource());
     }
 
     @Bean
@@ -57,14 +62,11 @@ public class Context {
 
     @Bean
     public PlatformTransactionManager transactionManager() {
-        PlatformTransactionManager transactionManager =
-                new DataSourceTransactionManager(dataSource());
-        return transactionManager;
+        return new DataSourceTransactionManager(dataSource());
     }
 
     @Bean
     public MailSender mailSender() {
-        MailSender mailSender = new DummyMailSender();
-        return mailSender;
+        return new DummyMailSender();
     }
 }

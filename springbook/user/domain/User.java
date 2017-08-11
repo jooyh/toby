@@ -1,6 +1,6 @@
 package springbook.user.domain;
 
-import springbook.user.enumpak.Level;
+import springbook.user.domain.enumpak.Level;
 
 /**
  * Created by user on 2017-08-02.
@@ -32,10 +32,10 @@ public class User {
     String email;
 
     //  Level upgrade method
-    public void upgradeLevel() throws IllegalAccessException {
+    public void upgradeLevel() {
         Level nextLevel = this.level.nextLevel();
         if (nextLevel == null) {
-            throw new IllegalAccessException(this.level + "은 업그레이드가 불가능 합니다.");
+            throw new IllegalStateException(this.level + "은 업그레이드가 불가능 합니다.");
         } else {
             this.level = nextLevel;
         }

@@ -11,21 +11,28 @@
     </bean>
 
     <bean id="userDao" class="springbook.user.dao.concrete.UserDaoJdbc">
+        <property name="jdbcTemplate" ref="jdbcTemplate"/>
+    </bean>
+
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
         <property name="dataSource" ref="dataSource"/>
     </bean>
 
     <bean id="userServiceImpl" class="springbook.user.service.UserServiceImpl">
         <property name="userDao" ref="userDao"/>
-        <property name="transactionManager" ref="platformTransactionManager"/>
         <property name="mailSender" ref="mailsender"/>
+    </bean>
+
+    <bean id="userService" class="springbook.user.service.UserServiceTx">
+        <property name="transactionManager" ref="platformTransactionManager"/>
+        <property name="userService" ref="userServiceImpl"/>
     </bean>
 
     <bean id="platformTransactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
         <property name="dataSource" ref="dataSource"/>
     </bean>
 
-    <bean id="mailsender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
-        <property name="host" value="mail.server.com"/>
+    <bean id="mailsender" class="testpak.forTest.DummyMailSender">
     </bean>
 
 </beans>

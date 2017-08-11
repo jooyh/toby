@@ -4,24 +4,17 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.datasource.SingleConnectionDataSource;
-import org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator;
-import org.springframework.jdbc.support.SQLExceptionTranslator;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import springbook.user.dao.UserDao;
 
-import springbook.user.dao.concrete.UserDaoJdbc;
 import springbook.user.domain.User;
-import springbook.user.enumpak.Level;
+import springbook.user.domain.enumpak.Level;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
-import java.util.List;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
@@ -30,7 +23,7 @@ import static org.junit.Assert.assertThat;
  * Created by user on 2017-08-03.
  */
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations = "/springbook/user/context/applicationContext.xml")
+@ContextConfiguration(locations = "/applicationContext.xml")
 @DirtiesContext
 public class UserDaoTest {
 

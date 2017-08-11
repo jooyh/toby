@@ -1,13 +1,12 @@
 package springbook.user.dao.concrete;
 
 import springbook.user.dao.UserDao;
-import springbook.user.enumpak.Level;
+import springbook.user.domain.enumpak.Level;
 import springbook.user.exception.DuplicateUserIdException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import springbook.user.domain.User;
 
-import javax.sql.DataSource;
 import java.sql.*;
 import java.util.List;
 
@@ -21,18 +20,16 @@ public class UserDaoJdbc implements UserDao {
 
     private JdbcTemplate jdbcTemplate;
 
-    public void setDataSource(DataSource dataSource) {
-        this.jdbcTemplate = new JdbcTemplate(dataSource);
+    public void setJdbcTemplate(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
-
-
     // =================== concrete method *
 
     public void add(final User user) throws DuplicateUserIdException {
 
         try {
             this.jdbcTemplate.update("INSERT INTO users(id, name, password,level,login,recommend,email) VALUES (?, ?, ?, ?, ?, ?,?)",
-                    user.getId(), user.getName(), user.getPassword(), user.getLevel().intValue(), user.getLogin(), user.getRecommend(),user.getEmail());
+                    user.getId(), user.getName(), user.getPassword(), user.getLevel().intValue(), user.getLogin(), user.getRecommend(), user.getEmail());
         } catch (DuplicateUserIdException e) {
             throw new DuplicateUserIdException(e);
         }
@@ -57,7 +54,7 @@ public class UserDaoJdbc implements UserDao {
     @Override
     public void update(User user) {
         this.jdbcTemplate.update("update users set name=?,password=?,level=?,login=?,recommend=?,email=? where id=?",
-                user.getName(), user.getPassword(), user.getLevel().intValue(), user.getLogin(), user.getRecommend(),user.getEmail(),user.getId());
+                user.getName(), user.getPassword(), user.getLevel().intValue(), user.getLogin(), user.getRecommend(), user.getEmail(), user.getId());
     }
 
     //private Method ============== *

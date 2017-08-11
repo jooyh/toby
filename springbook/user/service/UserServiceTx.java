@@ -7,10 +7,11 @@ import springbook.user.domain.User;
 
 public class UserServiceTx implements UserService {
 
-    UserService userService;
-    PlatformTransactionManager transactionManager;
+    private UserService userService;
+    private PlatformTransactionManager transactionManager;
 
-    public void setTransactionManager(PlatformTransactionManager transactionManager) {
+    public void setTransactionManager(
+            PlatformTransactionManager transactionManager) {
         this.transactionManager = transactionManager;
     }
 
@@ -24,17 +25,16 @@ public class UserServiceTx implements UserService {
     }
 
     @Override
-    public void upgradeLevels() throws IllegalAccessException {
+    public void upgradeLevels(){
         TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition());
         try {
+
             userService.upgradeLevels();
 
-            transactionManager.commit(status);
-
+            this.transactionManager.commit(status);
         } catch (RuntimeException e) {
-            transactionManager.rollback(status);
+            this.transactionManager.rollback(status);
             throw e;
         }
-
     }
 }
